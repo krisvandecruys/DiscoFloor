@@ -97,6 +97,29 @@ swing, repeat rate, sync, or latch. `calibrate(pad=1, level=4)` sends the app's
 separate calibration commit and **does** persist immediately. Runtime byte 6 and
 four calibration values remain unexplained and are preserved by the models.
 
+## Python API organization
+
+The app-style sections currently organize the **CLI**. The Python API retains
+its existing objects and methods; it does not yet provide `device.note_repeat`
+or `device.globe` namespaces.
+
+| CLI section | Current Python API |
+| --- | --- |
+| Pad | `Preset.bank[bank].pad[pad]`, `Pocket.pad[preset, bank, pad]`, bank `edit()`; `Preset.assign_control()` for Control mode |
+| Note Repeat | `Runtime` model (`tempo`, `swing`, `repeat_rate`, `sync`, `latch`); `Runtime.message()` generates a packet; `Pocket.set_repeat_rate()` sends a rate change |
+| Globe | `Preset.active_bank`, `Preset.velocity_curve`, `Preset.aftertouch`; `Pocket.calibrate()` for physical-pad calibration |
+| Preset | `Preset.load()` / `export()`, `Pocket.upload()` / `apply_changes()` / `select_preset()` / `save()` |
+
+`Runtime.from_bytes()` parses a previously read eight-byte runtime block.
+`Runtime.message()` only constructs a packet; `Pocket.send()` transmits it.
+Preserve the existing runtime block when changing fields so active preset and
+unknown bytes are retained. Similarly, preset property assignments are local
+until explicitly uploaded or applied. The live color setter and bank `edit()`
+context transmit as described above.
+
+Reset reconstruction is currently used by the CLI through the internal
+`discofloor.defaults` module, rather than a public `Pocket.reset()` method.
+
 ## Disco floor
 
 ```sh
@@ -110,6 +133,10 @@ At 110 BPM, odd-numbered pads change on beats 1/3 and even-numbered pads on beat
 with `--preset` and `--bank`. Stop with Ctrl-C. The example snapshots before
 changing anything and restores on normal completion, Ctrl-C, or an exception.
 It never sends persistent Save. Restoration failures are reported.
+Demo options: `--bpm` (default 110), `--preset` (default 1), `--bank` (default 3),
+`--port`, `--seed` for reproducible colors, `--frames` for a finite run, and
+`--dry-run` for a preview without MIDI access. Demo `--bpm` controls animation
+speed; it does not change the device's Note Repeat tempo.
 
 ## Small live commands
 
@@ -152,6 +179,20 @@ uv run discofloor preset --reset                  # Reset only active preset; no
 uv run discofloor preset --reset-all              # App's full reset; no Save.
 uv run discofloor show                           # Show active-bank pad messages.
 ```
+
+### Settings option reference
+
+All commands accept `--help`. `--port` can be supplied before or after the
+subcommand and overrides automatic port discovery.
+
+| Command | Options |
+| --- | --- |
+| `pad RANGE` | `--color`, `--brightness`, `--channel`, `--note`, `--cc`, `--momentary`, `--on`, `--off`, `--program`, `--bank-msb`, `--bank-lsb`, `--custom`, `--min-velocity`, `--max-velocity`, `--mode`, `--control`, `--preset`, `--bank` |
+| `note-repeat` | `--tempo`, `--time`, `--swing`, `--sync` / `--no-sync`, `--latch` / `--no-latch` |
+| `globe` | `--preset`, `--bank`, `--curve`, `--aftertouch` / `--no-aftertouch`, `--calibration` with `--pads`, `--snapshot`, `--restore` |
+| `preset [NUMBER]` | One of `--save`, `--export`, `--import`, `--reset`, `--reset-all` |
+| `show` | No settings flags; reads the active preset/bank |
+| `listen` | `--preset-file`, `--bank` (requires preset file), `--port` |
 
 ### Pad
 
