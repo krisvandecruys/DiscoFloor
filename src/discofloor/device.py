@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 
 from . import protocol
-from .model import Color, Preset, RepeatRate, _Numbered, bounded
+from .model import Color, Control, Preset, RepeatRate, _Numbered, bounded
 
 
 @dataclass(frozen=True)
@@ -34,6 +34,75 @@ class LivePad:
         if not isinstance(value, Color):
             raise TypeError("Expected Color")
         self.device.set_color(value, preset=self.id.preset, bank=self.id.bank, pad=self.id.pad)
+
+    @contextmanager
+    def edit(self):
+        """Stage one pad's bank-record fields and push the bank once."""
+        with self.device.preset[self.id.preset].bank[self.id.bank].edit() as bank:
+            yield bank.pad[self.id.pad]
+
+    def note(self, number, **options):
+        with self.edit() as pad:
+            pad.note(number, **options)
+
+    def cc(self, number, **options):
+        with self.edit() as pad:
+            pad.cc(number, **options)
+
+    def program(self, number, **options):
+        with self.edit() as pad:
+            pad.program(number, **options)
+
+    def custom(self, payload, **options):
+        with self.edit() as pad:
+            pad.custom(payload, **options)
+
+    @property
+    def control(self):
+        from .api import read
+
+        offset = protocol.preset_offset(self.id.preset) + 2912 + self.id.pad - 1
+        return Control(read(self.device, 5, offset, 1)[0])
+
+    @control.setter
+    def control(self, function):
+        function = Control(function)
+        offset = protocol.preset_offset(self.id.preset) + 2912 + self.id.pad - 1
+        self.device.send([protocol.build_write(offset, bytes([int(function)]))])
+
+    @property
+    def channel(self):
+        with self.edit() as pad:
+            return pad.channel
+
+    @channel.setter
+    def channel(self, value):
+        with self.edit() as pad:
+            pad.channel = value
+
+    @property
+    def brightness(self):
+        with self.edit() as pad:
+            return pad.brightness
+
+    @brightness.setter
+    def brightness(self, value):
+        with self.edit() as pad:
+            pad.brightness = value
+
+    @property
+    def mode(self):
+        return "pad" if self.control == Control.PAD else "control"
+
+    @mode.setter
+    def mode(self, value):
+        if value == "pad":
+            self.control = Control.PAD
+        elif value == "control":
+            if self.control == Control.PAD:
+                raise ValueError("Assign pad.control to choose a Control function")
+        else:
+            raise ValueError("Mode must be 'pad' or 'control'")
 
 
 @dataclass(frozen=True)
@@ -114,6 +183,42 @@ class LivePreset:
         self.device, self.number = device, number
         self.bank = _Numbered(lambda bank: LiveBank(device, number, bank), 7)
 
+    @property
+    def globe(self):
+        return self.device.globe[self.number]
+
+    def select(self):
+        self.device.select_preset(self.number)
+
+    def read(self) -> Preset:
+        from .api import read
+
+        base = protocol.preset_offset(self.number)
+        return Preset(
+            b"".join(
+                read(self.device, 5, base + offset, min(1009, 2931 - offset))
+                for offset in range(0, 2931, 1009)
+            )
+        )
+
+    def export(self, path):
+        self.read().export(path)
+
+    def upload(self, preset: Preset):
+        self.device.upload(preset, slot=self.number)
+
+    def import_file(self, path):
+        self.upload(Preset.load(path))
+
+    def reset(self):
+        from .defaults import factory_preset
+
+        self.upload(factory_preset(self.number))
+
+    def save(self):
+        """Save commits all slots, even when invoked on this slot view."""
+        self.device.save()
+
 
 class _LivePads:
     def __init__(self, device):
@@ -128,7 +233,7 @@ class _LivePads:
 
 
 class Pocket:
-    """Write-only device client. Close Midi Suite before transmitting.
+    """Live device views and explicit transmission. Close Midi Suite before transmitting.
 
     Construction does not open ports. Each method resolves the USB Private or Bluetooth input/
     output pair (or the explicitly specified name) and waits for ACKs. No retries or implicit preset Save occur.
@@ -136,8 +241,12 @@ class Pocket:
 
     def __init__(self, port: str | None = None, *, backend=None):
         self.port, self._backend = port, backend
-        self.preset = _Numbered(lambda number: LivePreset(self, number), 4)
+        from .api import Globe, NoteRepeat, Presets
+
+        self.preset = Presets(self, lambda number: LivePreset(self, number))
         self.pad = _LivePads(self)
+        self.note_repeat = NoteRepeat(self)
+        self.globe = Globe(self)
 
     def send(self, messages: list[bytes]):
         protocol.send_messages(messages, self.port, backend=self._backend)

@@ -199,6 +199,37 @@ class Bank:
         return self
 
 
+class LocalGlobe:
+    """Local preset-wide settings; assignments only change memory."""
+
+    def __init__(self, preset):
+        self.preset = preset
+
+    @property
+    def bank(self):
+        return self.preset.active_bank
+
+    @bank.setter
+    def bank(self, value):
+        self.preset.active_bank = value
+
+    @property
+    def curve(self):
+        return self.preset.velocity_curve
+
+    @curve.setter
+    def curve(self, value):
+        self.preset.velocity_curve = value
+
+    @property
+    def aftertouch(self):
+        return self.preset.aftertouch
+
+    @aftertouch.setter
+    def aftertouch(self, value):
+        self.preset.aftertouch = value
+
+
 class Preset:
     """A lossless .spp model. Editing is local until explicitly uploaded."""
 
@@ -221,6 +252,10 @@ class Preset:
 
     def to_bytes(self) -> bytes:
         return bytes(self._data)
+
+    @property
+    def globe(self):
+        return LocalGlobe(self)
 
     def copy(self) -> "Preset":
         return Preset(self.to_bytes())
