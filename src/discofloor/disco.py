@@ -12,6 +12,7 @@ import time
 from contextlib import contextmanager
 
 from discofloor import Color, Pocket
+from discofloor.ports import PORT_HELP, MidiPortUnavailable
 from discofloor.protocol import preset_setting_message
 
 # Saturated, illuminated floor tiles inspired by the reference photo.
@@ -106,7 +107,7 @@ def main(argv=None):
     parser.add_argument("--bpm", type=float, default=110)
     parser.add_argument("--preset", type=int, choices=range(1, 5), default=1)
     parser.add_argument("--bank", type=int, choices=range(1, 8), default=3)
-    parser.add_argument("--port", default="SINCO SMC-PAD Pocket-Private")
+    parser.add_argument("--port", help=PORT_HELP)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--frames", type=int)
     parser.add_argument("--dry-run", action="store_true")
@@ -120,6 +121,8 @@ def main(argv=None):
             device = Pocket(args.port)
             with saved_settings(args, device):
                 animate(args, device)
+    except MidiPortUnavailable as error:
+        parser.exit(1, f"{error}\n")
     except KeyboardInterrupt:
         print("\nStopped. No persistent Save was sent.")
 

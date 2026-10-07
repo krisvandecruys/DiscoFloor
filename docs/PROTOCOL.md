@@ -114,7 +114,9 @@ also returned from preset 2 to preset 1.
 ## Register 3: pad calibration
 
 160 bytes: sixteen 10-byte records, each five unsigned little-endian 16-bit
-values. The app's pad calibration level (1–8) changes the first value to
+values. The device owner confirmed that level 1 is most sensitive and level 8
+is least sensitive; increasing the level helps prevent unintended double triggers.
+The app's pad calibration level (1–8) changes the first value to
 `50 + (level - 1) * 100`, at `(pad - 1) * 10`. All eight levels were captured,
 as were pad 1 and pad 16 addresses. Each change is followed by a zero-length
 write to register 3, offset 0, which is the app's calibration commit command.
@@ -155,3 +157,30 @@ sync off, latch on, preset 1). All four presets were saved through Midi Suite.
 The earlier Python live color test received sixteen ACKs and the user's photo
 confirmed every physical pad position. Python full uploads and Save have been
 validated against vendor captures, but have not themselves been sent live.
+
+## Manual cross-check
+
+The supplied SMC-PAD Pocket user manual, English pages 4–6, confirms swing
+as 0–100%, the eight note-repeat subdivisions, control assignment functions,
+and that velocity curve 4 produces full velocity. It does not document the
+calibration levels or the four other values in each calibration record.
+The four other values remain unexplained. The device owner confirmed the
+level direction: 1 is most sensitive, 8 is least sensitive, with higher levels
+used to prevent unintended double triggers.
+Calibration persistence and its threshold mapping come from the captured app
+traffic and power-cycle tests, not the manual. CLI calibration writes only the
+known threshold and uses the captured register-3 commit sequence.
+
+## CLI organization
+
+CLI sections follow Midi Suite: Pad, Note Repeat, Globe, Preset. The Globe
+label does not change storage scope: curve, bank and aftertouch remain per
+preset; calibration remains device-wide. Pad control-mode assignments are
+per physical pad across all banks of the preset. Note Repeat edits preserve
+unknown runtime bytes and remain independent of presets.
+
+`preset --reset-all` reproduces all 13 captured reset writes exactly. The
+factory configuration is reconstructed from its known fields in
+`defaults.py` and checked against the capture. `preset --reset` uses the same
+default bytes for only the active slot, via validated preset-upload chunks;
+it preserves other slots and runtime settings. Neither reset implicitly Saves.

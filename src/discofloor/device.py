@@ -130,11 +130,11 @@ class _LivePads:
 class Pocket:
     """Write-only device client. Close Midi Suite before transmitting.
 
-    Construction does not open ports. Each method opens the exact Private input/
-    output pair and waits for ACKs. No retries or implicit preset Save occur.
+    Construction does not open ports. Each method resolves the USB Private or Bluetooth input/
+    output pair (or the explicitly specified name) and waits for ACKs. No retries or implicit preset Save occur.
     """
 
-    def __init__(self, port: str = "SINCO SMC-PAD Pocket-Private", *, backend=None):
+    def __init__(self, port: str | None = None, *, backend=None):
         self.port, self._backend = port, backend
         self.preset = _Numbered(lambda number: LivePreset(self, number), 4)
         self.pad = _LivePads(self)
@@ -178,5 +178,7 @@ class Pocket:
         self.send([protocol.runtime_message("rate", int(RepeatRate(rate)))])
 
     def calibrate(self, pad: int, *, level: int):
-        """The app's calibration sequence includes an immediate persistent commit."""
+        """Set physical-pad sensitivity: 1 most sensitive, 8 least.
+
+        Higher levels help prevent double triggers. Persists immediately."""
         self.send(protocol.calibration_messages(pad, level))

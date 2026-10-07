@@ -6,6 +6,8 @@ import plistlib
 from pathlib import Path
 from typing import Any
 
+from .selections import pad_range
+
 RECORD_SIZE = 26
 PRESET_SIZE = 2931
 PAD_TYPES = {"note": 0, "cc_toggle": 1, "momentary": 2, "program": 3, "custom": 4}
@@ -185,7 +187,7 @@ def decode(message: bytes) -> dict:
     return result
 
 
-def send_messages(messages: list[bytes], port_name: str, *, backend: Any = None) -> None:
+def send_messages(messages: list[bytes], port_name: str | None, *, backend: Any = None) -> None:
     """Wait for the captured success ACK after each write; never retry automatically."""
     import time
 
@@ -197,10 +199,9 @@ def send_messages(messages: list[bytes], port_name: str, *, backend: Any = None)
         packet = decode(message)
         if packet["type"] != 34 or packet.get("register") not in (3, 4, 5):
             raise ValueError("Only captured register-3/4/5 writes are supported")
-    if "SMC-PAD Pocket" not in port_name or "Private" not in port_name:
-        raise ValueError("Choose the SMC-PAD Pocket Private port explicitly")
-    if port_name not in backend.get_input_names() or port_name not in backend.get_output_names():
-        raise ValueError("Exact port name must exist as both an input and an output")
+    from .ports import require_ports
+
+    port_name = require_ports(backend, port_name)
     with (
         backend.open_input(port_name) as incoming,
         backend.open_output(port_name, autoreset=False) as outgoing,
@@ -267,7 +268,7 @@ def main(argv=None) -> None:
     parser = argparse.ArgumentParser(prog="discofloor protocol", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     color = commands.add_parser("color", help="Generate a color SysEx; sends nothing")
-    color.add_argument("pad", type=int)
+    color.add_argument("pad", type=pad_range, help="Pad selection, e.g. 1-4,7,9-12")
     color.add_argument("rgb", type=int, nargs=3)
     color.add_argument("--bank", type=int, default=3)
     color.add_argument("--preset", type=int, default=1)
@@ -298,11 +299,11 @@ def main(argv=None) -> None:
     if getattr(args, "send", False) and not args.port:
         parser.error("--send requires an explicit --port")
     if args.command == "color":
-        message = color_message(args.bank, args.pad, tuple(args.rgb), args.preset)
-        messages = [message]
-        print(message.hex(" ").upper())
+        messages = [color_message(args.bank, pad, tuple(args.rgb), args.preset) for pad in args.pad]
+        for message in messages:
+            print(message.hex(" ").upper())
         if args.output:
-            args.output.write_bytes(message)
+            args.output.write_bytes(b"".join(messages))
     elif args.command == "capture":
         print(json.dumps(capture_frames(args.path), indent=2))
         return
@@ -317,7 +318,12 @@ def main(argv=None) -> None:
         messages = [build_write(0, b"")]
         print(messages[0].hex(" ").upper())
     if args.send:
-        send_messages(messages, args.port)
+        from .ports import MidiPortUnavailable
+
+        try:
+            send_messages(messages, args.port)
+        except MidiPortUnavailable as error:
+            parser.exit(1, f"{error}\n")
         print(f"Device acknowledged {len(messages)} write(s).")
     else:
         print("Dry run: no MIDI ports opened, no messages sent.")

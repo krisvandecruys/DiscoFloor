@@ -1,6 +1,6 @@
 [project]
 name = "discofloor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python configuration and live pad colors for the M-Vave SMC PAD Pocket"
 readme = "README.md"
 authors = [{ name = "Kris Vandecruys" }]

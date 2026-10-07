@@ -4,6 +4,7 @@ import time
 from contextlib import ExitStack
 from typing import Any
 
+from .ports import require_ports
 from .protocol import decode
 
 
@@ -20,13 +21,7 @@ class Session:
             import mido
 
             self.backend = mido.Backend("mido.backends.rtmidi")
-        if "SMC-PAD Pocket" not in self.port or "Private" not in self.port:
-            raise ValueError("Choose the Pocket's Private port")
-        if (
-            self.port not in self.backend.get_input_names()
-            or self.port not in self.backend.get_output_names()
-        ):
-            raise ValueError(f"Private input/output port unavailable: {self.port}")
+        self.port = require_ports(self.backend, self.port)
         try:
             self.incoming = self.stack.enter_context(self.backend.open_input(self.port))
             self.outgoing = self.stack.enter_context(

@@ -29,8 +29,9 @@ Mido and python-rtmidi for device access. No PyPI release is assumed.
 
 ## Live colors
 
-Close Midi Suite before transmitting. `Pocket()` defaults to
-`SINCO SMC-PAD Pocket-Private`; pass another exact port name if necessary.
+Close Midi Suite before transmitting. `Pocket()` tries `SINCO SMC-PAD Pocket-Private` first, then
+`SMC-PAD Pocket Bluetooth`. A candidate must exist as both an input and output.
+An explicit port name disables fallback.
 Numbers for presets, banks, pads, and MIDI channels are one based.
 
 ```python
@@ -112,24 +113,137 @@ It never sends persistent Save. Restoration failures are reported.
 
 ## Small live commands
 
-Close Midi Suite first. These commands use the default Private port; override it
-with `--port "exact port name"`. Read commands print a one-based number.
+Close Midi Suite first. Commands try USB Private, then Pocket Bluetooth. Override
+with `--port "exact name"` before or after the subcommand. Bluetooth configuration
+access has not been verified; listening over Bluetooth does not need SysEx.
+
+The settings commands follow Midi Suite's sections: `pad`, `note-repeat`,
+`globe`, and `preset`. Other commands are `demo`, `show`, `listen`, and the
+low-level `protocol` tools. Boolean settings use positive/negative flags;
+omitting both forms leaves that setting unchanged.
 
 ```sh
-uv run discofloor bank               # Read the active preset's selected bank.
-uv run discofloor bank 3             # Select bank 3 in the active preset; read it back.
-uv run discofloor preset             # Read the active preset.
-uv run discofloor preset 2           # Select preset 2; read it back.
-uv run discofloor color 5 ff0044      # Set pad 5 in the active preset/bank.
-uv run discofloor fill 1020ff         # Set all sixteen pads using one bank write.
-uv run discofloor color 5 ff0044 --preset 2 --bank 3
-uv run discofloor save               # Explicitly persist preset changes across slots.
+uv run discofloor pad 1-4,7,9-12                  # Inspect selected pads.
+uv run discofloor pad 1-4,7 --color ff0044
+uv run discofloor pad 1-16 --color 1020ff --brightness 200
+uv run discofloor pad 5 --note 60 --channel 10 --min-velocity 10 --max-velocity 127
+uv run discofloor pad 5 --cc 74 --on 127 --off 0   # Toggle.
+uv run discofloor pad 5 --cc 74 --momentary --on 127 --off 0
+uv run discofloor pad 6 --program 7 --bank-msb 2 --bank-lsb 3
+uv run discofloor pad 7 --custom 'f0 7d 01 f7'
+uv run discofloor pad 9 --mode control --control note-repeat
+uv run discofloor pad 10 --control latch          # Implies Control mode.
+uv run discofloor pad 9-10 --mode pad              # Restore normal pad mode.
+uv run discofloor note-repeat                    # Inspect tempo/time/swing/sync/latch.
+uv run discofloor note-repeat --tempo 110 --swing 50 --time 1/16
+uv run discofloor note-repeat --sync --no-latch
+uv run discofloor globe                          # Inspect curve/bank/aftertouch.
+uv run discofloor globe --bank 3 --curve 4 --no-aftertouch
+uv run discofloor globe --preset 2 --aftertouch   # Address slot 2 without selecting it.
+uv run discofloor globe --calibration 3 --pads 1-4 # Immediately persists.
+uv run discofloor globe --snapshot bank.json     # Read-only bank backup.
+uv run discofloor globe --restore bank.json
+uv run discofloor preset                         # Read active preset.
+uv run discofloor preset 2                       # Select preset 2.
+uv run discofloor preset --save                   # Persist changes across ALL slots.
+uv run discofloor preset --export backup.spp
+uv run discofloor preset 2 --import backup.spp    # Select slot 2 and upload; no Save.
+uv run discofloor preset --reset                  # Reset only active preset; no Save.
+uv run discofloor preset --reset-all              # App's full reset; no Save.
+uv run discofloor show                           # Show active-bank pad messages.
 ```
 
-`color` and `fill` resolve unspecified addresses from the device. Explicit
-`--preset`/`--bank` addresses do not switch the visible selection. No command
-implicitly saves; only `save` sends the persistent commit. For `#`-prefixed
-colors, quote the argument to protect it from shell comment syntax.
+### Pad
+
+`pad RANGE` edits selected bank records. Color, message, channel, brightness,
+and velocity changes are staged into one bank write. `--preset` and `--bank`
+address records without changing the visible selection. Ranges are inclusive,
+ascending within each range, and within 1–16; duplicates are removed. Quote
+`#`-prefixed color arguments to protect them from shell comment syntax.
+
+Message types (`--note`, `--cc`, `--program`, `--custom`) are mutually exclusive.
+CC flags require `--cc`; program bank flags require `--program`. CC defaults
+are on=127, off=0; program bank MSB/LSB default to 0. Type changes preserve the
+channel unless `--channel` is provided. `--note` preserves velocity bounds;
+all selected pads receive that same note. Velocity bounds can also edit existing
+Note pads; invalid bounds abort the entire bank edit. Custom payloads contain
+1–16 bytes; configuring them stores the payload rather than transmitting it
+as a standalone message.
+
+`--mode control --control FUNCTION` assigns a physical pad's function across
+all seven banks in the addressed preset. `--control` alone implies Control mode;
+`--mode pad` removes the control assignment. Available functions are
+`note-repeat`, `rate-up`, `rate-down`, `swing-up`, `swing-down`, `bank-up`,
+`bank-down`, and `latch`. These assignments override the underlying pad message.
+Combining them with bank edits sends separate writes, not an atomic transaction.
+
+### Note Repeat
+
+These settings are independent of presets and volatile, even after
+`preset --save`. Edits preserve active preset and the unknown runtime byte.
+`--time` accepts `1/4`, `1/4T`, `1/8`, `1/8T`, `1/16`, `1/16T`, `1/32`, `1/32T`;
+T means triplet. Swing is 0–100% according to the manual. Tempo accepts the
+positive 16-bit storage range; firmware limits are unmeasured. Use `--sync` /
+`--no-sync` and `--latch` / `--no-latch`. These configure Note Repeat; there is
+no verified CLI command to activate it directly. Assign and use a physical
+Note Repeat control pad.
+
+### Globe
+
+The app calls this section Globe, but curve, selected bank, and aftertouch
+are stored per preset. They affect all pads in that preset. `--preset` addresses
+a slot without selecting it; default is the active preset. Use `--aftertouch`
+or `--no-aftertouch`. The manual identifies curve 4 as full velocity; curves
+1–3 have not been characterized.
+
+Calibration is device-wide, applying to physical pads independent of presets
+and banks. Use `--calibration LEVEL --pads RANGE` without preset/address/edit
+flags. Level 1 is most sensitive; level 8 is least sensitive. Increasing the
+level helps prevent unintended double triggers, as confirmed by the device
+owner. The captured thresholds are 50–750 in steps of 100. Each pad's write
+is followed by an immediate calibration commit; no separate Save is needed.
+The four unknown calibration values remain untouched. The supplied manual
+does not describe calibration.
+
+Bank snapshots contain 416 pad bytes, the addressed preset's selected bank,
+and active preset selection. `--snapshot` defaults to the selected bank;
+`--bank` addresses another bank for a snapshot without selecting it.
+`--restore` uses the file's address and saved selections. Neither implicitly
+saves to flash. Snapshots exclude controls, aftertouch, curve, calibration,
+and other Note Repeat settings.
+
+### Preset
+
+An optional preset number selects that preset before the requested action.
+Preset files are complete 2931-byte `.spp` records. Save commits across all
+four slots and does not persist Note Repeat settings. Import and reset send
+no implicit Save. `--reset` restores only the active slot's captured factory
+configuration, including its Globe settings and control assignments.
+`--reset-all` reproduces the captured app reset: all four presets plus default
+Note Repeat settings, selecting preset 1. Calibration is unaffected by either
+reset. Choose one action per invocation.
+
+The previous top-level `bank`, `runtime`, and `save` commands are now
+`globe --bank`, `note-repeat`, and `preset --save`. Missing ports print the
+found input/output names.
+
+## Listen to pad strikes
+
+```sh
+uv run discofloor listen
+uv run discofloor listen --port "SMC-PAD Pocket Bluetooth"
+uv run discofloor listen --preset-file my-preset.spp --bank 3
+```
+
+Listening prefers the USB **Master** performance input, then Bluetooth. When
+USB Private configuration access is available, it reads the active bank once
+and identifies matching pads. On Bluetooth it listens without sending SysEx;
+use `--preset-file` for a matching mapping, otherwise it reports raw MIDI with
+"Pad unknown". Note On velocity zero is treated as release. Duplicate assignments
+list every candidate. Program messages cannot distinguish bank selections on
+their own. Control-mode pads may change internal state without emitting MIDI.
+Restart listening after changing the bank or preset. Ctrl-C stops; no configuration
+writes or Save commands are sent.
 
 ## CLI and development
 
