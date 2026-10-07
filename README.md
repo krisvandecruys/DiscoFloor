@@ -211,6 +211,72 @@ after changing selection or configuration. Ctrl-C stops listening.
 Low-level `protocol` tools generate/decode packets. They default to dry-run;
 sending requires explicit `--send --port`. Run `protocol --help` for details.
 
+### Launcher
+
+Turn notes into command launches. Put the chosen executable and its arguments
+**after `--`**:
+
+```sh
+uv run discofloor launcher --note 36 -- open -a Music
+uv run discofloor launcher --note 36 --channel 10 --min-velocity 90 -- open -a Music
+uv run discofloor launcher --note 36 --event note-off -- printf 'Released note %s\n' '{note}'
+uv run discofloor launcher --note 36 --event both --allow-overlap -- printf '%s: %s\n' '{event}' '{velocity}'
+uv run discofloor launcher --cc 74 --value 127 -- open -a Music
+uv run discofloor launcher --program 7 -- open -a Music
+uv run discofloor launcher --config examples/launcher.toml --dry-run
+```
+
+`--event` accepts `note-on` (default), `note-off`, or `both`. Note On with velocity
+zero counts as Note Off. `--velocity` selects an exact velocity; `--min-velocity`
+and `--max-velocity` set inclusive bounds (default 0–127), including release
+velocity. Channels are 1–16; omitting `--channel` matches any channel. Note/CC/
+program numbers are 0–127. CC `--value` is optional; without it all values match.
+
+Listening uses the performance input, like `listen`, and sends no MIDI or
+configuration messages. `--dry-run` listens and prints matched commands without
+executing them. By default a binding skips triggers while its command is still
+running; `--allow-overlap` allows concurrent instances. There is no cooldown by
+default; `--cooldown SECONDS` adds one per binding. Both-event bindings may need
+`--allow-overlap` to launch on a quick release while the press command is busy.
+**Ctrl-C stops listening; launched commands keep running.** Child output appears
+in the same terminal, and nonzero exits are reported.
+
+Multiple bindings live in a TOML file:
+
+```toml
+[[binding]]
+note = 36
+channel = 10
+event = "note-on"
+command = ["open", "-a", "Music"]
+
+[[binding]]
+note = 36
+channel = 10
+event = "note-off"
+command = ["printf", "Released note %s\n", "{note}"]
+
+[[binding]]
+cc = 74
+value = 127
+command = ["open", "-a", "Safari"]
+```
+
+Run it with `uv run discofloor launcher --config launcher.toml`. Optional
+binding keys are `velocity`, `min_velocity`, `max_velocity`, `cooldown`,
+`allow_overlap`, and `cwd`. A relative `cwd` is relative to the TOML file;
+otherwise commands inherit the launcher's working directory. An optional
+root `port` chooses the input; CLI `--port` overrides it. Every binding must
+have exactly one `note`, `cc`, or `program` and a `command` argument array.
+Overlapping bindings all run independently.
+
+Arguments can contain `{note}`, `{velocity}`, `{channel}`, `{control}`, `{value}`,
+`{program}`, and `{event}`. Channel placeholders are one based; `{event}` is
+normalized to `note-on` / `note-off` for notes. Other events use their MIDI type.
+Fields absent from an event become 0. Commands run as argument lists with no
+implicit shell expansion or parsing. If shell features are needed, explicitly
+choose a shell command such as `sh -c`.
+
 Migration from older CLI names: `bank` → `globe --bank`, `runtime` →
 `note-repeat`, `save` → `preset --save`, and color/fill → `pad RANGE --color`.
 
@@ -357,6 +423,28 @@ assumes the device shares the model's original baseline. Existing methods
 `save()`, `select_preset()`, `upload()`, `set_repeat_rate()`, and `calibrate()`
 and local `active_bank`, `velocity_curve`, `aftertouch` properties remain
 compatible. Callable bank/pad indexing also remains supported.
+
+### Launcher bindings
+
+The same launcher is available to Python scripts:
+
+```python
+from discofloor.launcher import Binding, Launcher, Trigger
+
+bindings = [
+    Binding(Trigger("note", 36, channel=10, event="note-on"), ("open", "-a", "Music")),
+    Binding(
+        Trigger("note", 36, channel=10, event="note-off"), ("printf", "Released %s\n", "{note}")
+    ),
+]
+Launcher(bindings, dry_run=True).run()  # Listen and preview; no commands executed.
+```
+
+`Launcher.run()` listens until interrupted. It opens only the MIDI input and
+lets `KeyboardInterrupt` propagate to the caller. Binding options include
+`cooldown`, `allow_overlap`, and a `Path` working directory; their behavior
+matches the CLI. `load_config(Path("launcher.toml"))` returns bindings and the
+optional configured port.
 
 ### Protocol and development
 

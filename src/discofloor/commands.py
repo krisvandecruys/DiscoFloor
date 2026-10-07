@@ -565,6 +565,7 @@ def pad(argv=None):
 
 def main(argv=None):
     from .disco import main as demo
+    from .launcher import main as launcher
     from .listen import main as listen
     from .protocol import main as protocol
 
@@ -576,6 +577,7 @@ def main(argv=None):
         "pad": pad,
         "show": show,
         "listen": listen,
+        "launcher": launcher,
         "protocol": protocol,
     }
     cli = argparse.ArgumentParser(
@@ -591,6 +593,7 @@ def main(argv=None):
         "pad": "Inspect/edit a pad range: colors, notes, and settings",
         "show": "Show what the active bank’s pads are configured to send",
         "listen": "Listen for pad strikes and incoming MIDI",
+        "launcher": "Run chosen commands on incoming MIDI triggers",
         "protocol": "Low-level packet and capture tools",
     }
     for name, description in descriptions.items():

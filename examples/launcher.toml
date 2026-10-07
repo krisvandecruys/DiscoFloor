@@ -1,0 +1,20 @@
+# Preview first: uv run discofloor launcher --config examples/launcher.toml --dry-run
+# Then omit --dry-run to execute. Notes must match your hardware configuration.
+
+[[binding]]
+note = 36
+channel = 10
+event = "note-on"
+command = ["open", "-a", "Music"]
+
+[[binding]]
+note = 36
+channel = 10
+event = "note-off"
+command = ["printf", "Released note %s\n", "{note}"]
+
+[[binding]]
+note = 37
+channel = 10
+min_velocity = 90
+command = ["open", "-a", "Safari"]
