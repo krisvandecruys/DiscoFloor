@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Disco tiles: odd pads on beats 1/3, even pads on beats 2/4 at 110 BPM.
+"""Seven disco tile patterns, each four 4/4 bars at 110 BPM.
 
 Close Midi Suite, then run: uv run discofloor demo
 Snapshots the bank and selection first; restores on completion or Ctrl-C.
@@ -11,40 +11,10 @@ import random
 import time
 from contextlib import contextmanager
 
-from discofloor import Color, Pocket
+from discofloor import Pocket
+from discofloor.animations import ANIMATIONS, BEATS_PER_PATTERN, BLACK, animation_at, render_frame
 from discofloor.ports import PORT_HELP, MidiPortUnavailable
 from discofloor.protocol import preset_setting_message
-
-# Saturated, illuminated floor tiles inspired by the reference photo.
-PALETTE = tuple(
-    Color.from_hex(value)
-    for value in (
-        "#ff1744",
-        "#ff8000",
-        "#ffd600",
-        "#32ff70",
-        "#00dfff",
-        "#3050ff",
-        "#a030ff",
-        "#ff30b0",
-        "#ffb0d0",
-    )
-)
-
-
-def next_floor(rng: random.Random, previous: list[Color] | None) -> list[Color]:
-    """Avoid matching adjacent tiles and change every tile between frames."""
-    tiles = []
-    for index in range(16):
-        excluded = set()
-        if previous:
-            excluded.add(previous[index])
-        if index % 4:
-            excluded.add(tiles[index - 1])
-        if index >= 4:
-            excluded.add(tiles[index - 4])
-        tiles.append(rng.choice([color for color in PALETTE if color not in excluded]))
-    return tiles
 
 
 @contextmanager
@@ -66,31 +36,37 @@ def animate(args, device=None):
     period = 60 / args.bpm
     print(
         f"{args.bpm:g} BPM, one change every {period:.3f}s; "
-        f"preset {args.preset}, bank {args.bank}. Ctrl-C to stop."
+        f"{len(ANIMATIONS)} patterns × 4 bars; preset {args.preset}, bank {args.bank}. Ctrl-C to stop."
     )
     rng = random.Random(args.seed)
-    previous = None
+    previous = [BLACK] * 16
+    last_pattern = None
     deadline = time.monotonic()
     frame = 0
     beat = 0
     while args.frames is None or frame < args.frames:
         time.sleep(max(0, deadline - time.monotonic()))
-        numbers = range(1 if beat % 2 == 0 else 2, 17, 2)
+        index, step = animation_at(beat)
+        pattern_key = beat // BEATS_PER_PATTERN
+        if pattern_key != last_pattern:
+            animation = ANIMATIONS[index]
+            print(
+                f"Pattern {index + 1}/{len(ANIMATIONS)}: {animation.name} — {animation.description} (4 bars)"
+            )
+            last_pattern = pattern_key
         if current_bank is not None:
-            # Preserve the other eight pads; exit still sends one bank write.
+            # All patterns still use one bank update and preserve non-color fields.
             with current_bank.edit() as bank:
                 existing = [bank.pad[number].color for number in range(1, 17)]
-                candidates = next_floor(rng, existing)
-                for number in numbers:
-                    bank.pad[number].color = candidates[number - 1]
+                colors = render_frame(beat, rng, existing)
+                for number, color in enumerate(colors, start=1):
+                    bank.pad[number].color = color
         else:
-            if previous is None:
-                previous = [Color(0, 0, 0)] * 16
-            candidates = next_floor(rng, previous)
-            colors = previous.copy()
-            for number in numbers:
-                colors[number - 1] = candidates[number - 1]
-            print(f"Beat {beat % 4 + 1}: " + " ".join(c.to_bytes().hex() for c in colors))
+            colors = render_frame(beat, rng, previous)
+            print(
+                f"Bar {step // 4 + 1}/4, beat {step % 4 + 1}: "
+                + " ".join(c.to_bytes().hex() for c in colors)
+            )
             previous = colors
         beat += 1
         frame += 1

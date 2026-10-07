@@ -42,9 +42,23 @@ wheel/source downloads are available under [Releases](https://github.com/krisvan
 uv run discofloor demo
 ```
 
-A colorful disco floor at **110 BPM**. Odd pads change on beats 1 and 3; even pads
-change on beats 2 and 4. Each beat sends a single bank update. The demo snapshots
-the original bank first and restores it on completion, Ctrl-C, or an exception.
+Seven patterns cycle at **110 BPM**, each for **four bars of 4/4** (16 beats,
+about 8.7 seconds). One complete cycle is 28 bars, about 61 seconds, then repeats.
+They are disco-inspired geometric patterns rather than a reconstruction of a
+specific historical floor program.
+
+| Pattern | Movement |
+| --- | --- |
+| Color shuffle | Original demo: odd pads change on beats 1/3, even pads on 2/4 |
+| Checkerboard | Two interlocking groups swap colors each beat |
+| Candy stripes | Four colored columns march sideways |
+| Row chase | A bright row sweeps bottom to top |
+| Diagonal wave | Rainbow bands travel diagonally |
+| Perimeter spin | A bright comet circles the twelve outer pads |
+| Center pulse | Center tiles and outer ring pulse in opposition |
+
+Each beat uses one bank update. The terminal announces each pattern. The demo
+snapshots the original bank and restores it on completion, Ctrl-C, or an exception.
 It never saves to flash. Keep the device connected during cleanup; a process
 kill or power loss cannot run restoration.
 
