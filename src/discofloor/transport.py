@@ -27,6 +27,9 @@ class Session:
             self.outgoing = self.stack.enter_context(
                 self.backend.open_output(self.port, autoreset=False)
             )
+            # Cold-start USB reads can be lost immediately after opening CoreMIDI ports.
+            # Waiting before the first request worked without Midi Suite or MIDI Monitor.
+            time.sleep(1)
         except BaseException:
             self.stack.close()
             raise

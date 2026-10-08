@@ -25,6 +25,8 @@ DiscoFloor tries `SINCO SMC-PAD Pocket-Private`, then `SMC-PAD Pocket Bluetooth`
 Use `--port "exact name"` to override discovery. Missing ports print the available
 MIDI inputs and outputs. Bluetooth configuration SysEx is unverified; listening
 over Bluetooth works independently of configuration access.
+Configuration connections wait one second after opening their MIDI ports so
+the Pocket can respond after a power cycle without first opening Midi Suite.
 
 To use the library in another uv project, install from this checkout:
 
