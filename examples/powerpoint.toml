@@ -1,0 +1,167 @@
+# macOS / Microsoft PowerPoint: start a slide show before tapping pads.
+# Captured from preset 3, bank 3, channel 10; this file does not configure pads.
+# Purple = previous; yellow = next. Update notes if your mapping changes.
+# Preview: uv run discofloor launcher --config examples/powerpoint.toml --dry-run
+# Run:     uv run discofloor launcher --config examples/powerpoint.toml
+# cwd is relative to this TOML, so the companion script resolves reliably.
+# Stop the Hammerspoon MidiMapper first to avoid duplicate arrow-key actions.
+
+# Pad 1: purple — previous slide
+[[binding]]
+note = 32
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "previous"]
+
+# Pad 2: purple — previous slide
+[[binding]]
+note = 33
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "previous"]
+
+# Pad 3: purple — previous slide
+[[binding]]
+note = 34
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "previous"]
+
+# Pad 4: purple — previous slide
+[[binding]]
+note = 35
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "previous"]
+
+# Pad 5: purple — previous slide
+[[binding]]
+note = 36
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "previous"]
+
+# Pad 6: purple — previous slide
+[[binding]]
+note = 37
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "previous"]
+
+# Pad 7: yellow — next slide
+[[binding]]
+note = 38
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "next"]
+
+# Pad 8: yellow — next slide
+[[binding]]
+note = 39
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "next"]
+
+# Pad 9: purple — previous slide
+[[binding]]
+note = 40
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "previous"]
+
+# Pad 10: yellow — next slide
+[[binding]]
+note = 41
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "next"]
+
+# Pad 11: yellow — next slide
+[[binding]]
+note = 42
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "next"]
+
+# Pad 12: yellow — next slide
+[[binding]]
+note = 43
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "next"]
+
+# Pad 13: purple — previous slide
+[[binding]]
+note = 44
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "previous"]
+
+# Pad 14: yellow — next slide
+[[binding]]
+note = 45
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "next"]
+
+# Pad 15: yellow — next slide
+[[binding]]
+note = 46
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "next"]
+
+# Pad 16: yellow — next slide
+[[binding]]
+note = 47
+channel = 10
+event = "note-on"
+min_velocity = 96
+cooldown = 0.25
+cwd = "."
+command = ["/usr/bin/osascript", "powerpoint.applescript", "next"]

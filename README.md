@@ -272,6 +272,24 @@ root `port` chooses the input; CLI `--port` overrides it. Every binding must
 have exactly one `note`, `cc`, or `program` and a `command` argument array.
 Overlapping bindings all run independently.
 
+For PowerPoint on macOS, [examples/powerpoint.toml](examples/powerpoint.toml)
+maps purple pads to the previous slide and yellow pads to the next slide:
+
+```sh
+uv run discofloor launcher --config examples/powerpoint.toml --dry-run
+uv run discofloor launcher --config examples/powerpoint.toml
+```
+
+Start a PowerPoint slide show first. The companion AppleScript checks that the
+active presentation has a slide show, then focuses PowerPoint and sends its
+left/right slideshow keys. This avoids a macOS PowerPoint issue where the
+previous-slide AppleScript command advances instead. macOS may request Automation
+and Accessibility permissions on first use. Stop any existing
+Hammerspoon MIDI mapping to avoid duplicate actions. These bindings use notes
+32–47 on channel 10 from the captured preset 3, bank 3 mapping; colors are labels,
+not dynamically detected. Presses at velocity 96 or higher trigger navigation, with a 250 ms cooldown
+per pad; softer taps and releases do not. The script reports an error if no slide show is running.
+
 Arguments can contain `{note}`, `{velocity}`, `{channel}`, `{control}`, `{value}`,
 `{program}`, and `{event}`. Channel placeholders are one based; `{event}` is
 normalized to `note-on` / `note-off` for notes. Other events use their MIDI type.
